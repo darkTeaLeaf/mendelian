@@ -4,11 +4,11 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b91f8a28a30f8ccf6dbbbe22ff843025bfe15fe4d12155446552d4e9553ceee3
+-- hash: 5c60ec43e13e04d1642b6c08482b9cbf767410c7f9e51af9ce6b4601ba58a0b3
 
 name:           mendelian
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/darkTeaLeaf/escape-the-room#readme>
+description:    Please see the README on GitHub at <https://github.com/darkTeaLeaf/mendelian#readme>
 homepage:       https://github.com/darkTeaLeaf/mendelian#readme
 bug-reports:    https://github.com/darkTeaLeaf/mendelian/issues
 author:         Arina Fedorovskaya
@@ -33,7 +33,7 @@ custom-setup
 
 library
   exposed-modules:
-      MyProject
+      Mendelian
   other-modules:
       Paths_mendelian
   hs-source-dirs:
@@ -63,7 +63,7 @@ test-suite mendelian-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      MyProjectSpec
+      MendelianSpec
       Paths_mendelian
   hs-source-dirs:
       test

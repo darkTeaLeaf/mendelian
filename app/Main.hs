@@ -1,6 +1,6 @@
 module Main where
 
-import           MyProject
+import           Mendelian
 
 main :: IO ()
 main = run
