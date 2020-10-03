@@ -71,17 +71,6 @@ instance Show Genotype where
       flatten [] = []
       flatten ((allele1, allele2) : rest) = allele1 : allele2 : flatten rest 
 
-
-alleleString :: [Allele] -> [Char]
-alleleString [] = ""
-alleleString ((Allele (Gen l _) dom _) : rest) = [changeCase l dom] 
-                                              ++ alleleString rest
-
-changeCase :: Char -> Bool -> Char
-changeCase c isDom
-  | isDom    = toUpper c
-  | otherwise = toLower c
-
 instance Show Population where
   show (Population population) = "\n--Population description--\n" 
                               ++ speciesDescrip population
@@ -89,7 +78,7 @@ instance Show Population where
       speciesDescrip :: [(Genotype, Ratio)] -> String
       speciesDescrip [] = ""
       speciesDescrip ((genotype, ratio) : rest) = show genotype
-        ++ "\nGenopype ratio: " ++ show ratio
+        ++ "\nGenotype ratio: " ++ show ratio
         ++ show (genoToPheno genotype) ++ "\n" ++ speciesDescrip rest
 
 
@@ -149,6 +138,11 @@ count = map (\xs@(x:_) -> (x, length xs)) . group . sort
 -- look task manager lab 2-3
 
 
+-- ############
+-- USEFUL UTILS
+-- ############
+
+
 -- | Check if allele is dominant
 isDominant :: Allele -> Bool
 isDominant (Allele (Gen _ _) dom _)  = dom
@@ -167,6 +161,17 @@ genoToPheno (Genotype genotype) = Phenotype (generPheno genotype)
     generPheno [] = []
     generPheno (alleles : rest) = [getDominant alleles] ++ generPheno rest
 
+-- | From list of alleles make a string of genes labels
+alleleString :: [Allele] -> [Char]
+alleleString [] = ""
+alleleString ((Allele (Gen l _) dom _) : rest) = [changeCase l dom] 
+                                              ++ alleleString rest
+
+-- | Make an upper case of char if true, lower otherwise
+changeCase :: Char -> Bool -> Char
+changeCase c isDom
+  | isDom    = toUpper c
+  | otherwise = toLower c
 
 run :: IO ()
 run = do
