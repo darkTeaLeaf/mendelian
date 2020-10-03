@@ -149,14 +149,17 @@ count = map (\xs@(x:_) -> (x, length xs)) . group . sort
 -- look task manager lab 2-3
 
 
+-- | Check if allele is dominant
 isDominant :: Allele -> Bool
 isDominant (Allele (Gen _ _) dom _)  = dom
 
+-- | Get dominant allele out of pair of alleles
 getDominant :: (Allele, Allele) -> Allele
 getDominant (allele1, allele2) 
   | isDominant allele1 = allele1
   | otherwise = allele2
 
+-- | Convert genotype to phenotype using mendelian rule
 genoToPheno :: Genotype -> Phenotype
 genoToPheno (Genotype genotype) = Phenotype (generPheno genotype)
   where
