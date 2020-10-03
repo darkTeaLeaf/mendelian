@@ -19,12 +19,11 @@ data Gen =  Gen Label Trait
 data Allele = Allele Gen IsDominant TraitExpression
 
 data Genotype = Genotype [(Allele, Allele)]
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
 
 data Phenotype = Phenotype [Allele]
 
 data Population = Population [(Genotype, Ratio)]
-  deriving (Show)
 
 data PopulationPhenotype = PopulationPhenotype [(Phenotype, Ratio)]
 
@@ -51,6 +50,38 @@ instance Show Allele where
   show (Allele (Gen l _) True _) = show (toUpper l)
   show (Allele (Gen l _) False _)= show (toLower l)
 
+instance Show Phenotype where
+  show (Phenotype phenotype) = "\nPhenotype: " 
+                            ++ alleleString phenotype 
+                            ++ generPhenoString phenotype
+    where
+      generPhenoString :: [Allele] -> [Char]
+      generPhenoString [] = ""
+      generPhenoString ((Allele (Gen l trait) dom expr) : rest) = "\n" 
+              ++ [changeCase l dom] ++ ": " ++ trait ++ " " 
+              ++ expr ++ generPhenoString rest
+
+instance Show Genotype where
+  show (Genotype genotype) = "\nGenotype: " ++ genotypeString genotype
+    where
+      genotypeString :: [(Allele, Allele)] -> String
+      genotypeString genot = alleleString (flatten genot)
+
+      flatten :: [(Allele, Allele)] -> [Allele]
+      flatten [] = []
+      flatten ((allele1, allele2) : rest) = allele1 : allele2 : flatten rest 
+
+instance Show Population where
+  show (Population population) = "\n--Population description--\n" 
+                              ++ speciesDescrip population
+    where
+      speciesDescrip :: [(Genotype, Ratio)] -> String
+      speciesDescrip [] = ""
+      speciesDescrip ((genotype, ratio) : rest) = show genotype
+        ++ "\nGenotype ratio: " ++ show ratio
+        ++ show (genoToPheno genotype) ++ "\n" ++ speciesDescrip rest
+
+
 -- ###################
 -- COMPUTE GENERATIONS
 -- ###################
@@ -58,7 +89,7 @@ instance Show Allele where
 -- | Compute all possible children genotypes from given parents
 computeOffsprings :: Genotype -> Genotype -> Population
 computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
-  map (\(x, num) -> (x, fromIntegral(num)))
+  numberToRatio
   $ count
   $ map (\a -> (Genotype a)) (generateCombinations possibleGens))
   
@@ -71,7 +102,11 @@ computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
     ordered a1 a2
       = case compare a1 a2 of 
         LT -> (a2, a1)
-        _ -> (a1, a2)
+        _  -> (a1, a2)
+
+    numberToRatio arr = map(\(x, num) -> (x, ratio num)) arr
+      where 
+        ratio num = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
 
 -- | Generate all possible tuple combinations from different lists
 generateCombinations :: [[(a, a)]] -> [[(a, a)]]
@@ -99,15 +134,52 @@ count = map (\xs@(x:_) -> (x, length xs)) . group . sort
 
 --guessParentsChildren :: PopulationPhenotype -> PopulationPhenotype -> Population
 
---genoToPheno :: Genotype -> Phenotype
-
 --commandHandler :: IO()
 -- look task manager lab 2-3
+
+
+-- ############
+-- USEFUL UTILS
+-- ############
+
+
+-- | Check if allele is dominant
+isDominant :: Allele -> Bool
+isDominant (Allele (Gen _ _) dom _)  = dom
+
+-- | Get dominant allele out of pair of alleles
+getDominant :: (Allele, Allele) -> Allele
+getDominant (allele1, allele2) 
+  | isDominant allele1 = allele1
+  | otherwise = allele2
+
+-- | Convert genotype to phenotype using mendelian rule
+genoToPheno :: Genotype -> Phenotype
+genoToPheno (Genotype genotype) = Phenotype (generPheno genotype)
+  where
+    generPheno :: [(Allele, Allele)] -> [Allele]
+    generPheno [] = []
+    generPheno (alleles : rest) = [getDominant alleles] ++ generPheno rest
+
+-- | From list of alleles make a string of genes labels
+alleleString :: [Allele] -> [Char]
+alleleString [] = ""
+alleleString ((Allele (Gen l _) dom _) : rest) = [changeCase l dom] 
+                                              ++ alleleString rest
+
+-- | Make an upper case of char if true, lower otherwise
+changeCase :: Char -> Bool -> Char
+changeCase c isDom
+  | isDom    = toUpper c
+  | otherwise = toLower c
 
 run :: IO ()
 run = do
   let a = Gen 'a' "color"
   let b = Gen 'b' "smoothness"
-  let dad = Genotype [((Allele a True "green"), (Allele a True "green")), ((Allele b True "smooth"), (Allele b True "smooth"))]
+  let dad = Genotype [((Allele a True "green"), (Allele a True "green")), ((Allele b True "smooth"), (Allele b False "wrinkle"))]
   let mom = Genotype [((Allele a True "green"), (Allele a False "yellow")), ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
+
+--  print (genoToPheno dad)
+--  print (genoToPheno mom)
   print (computeOffsprings dad mom)
