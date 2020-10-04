@@ -102,7 +102,7 @@ Exit the program.
 
 Example is shown below:
 
-'''
+```
 /gen a color
 Gene added!
 /gen b smoothness
@@ -160,4 +160,4 @@ A: color green
 B: smoothness smooth
 
 /exit
-'''
+```
