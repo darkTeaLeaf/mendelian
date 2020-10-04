@@ -111,6 +111,25 @@ Allele added!
 Parent 1 genotype set!
 /geno2 Aabb
 Parent 2 genotype set!
+/show
+
+--Current state--
+
+Genes:   [
+  'b' smoothness
+  'a' color
+]
+
+Alleles: [
+  'b' wrinkle
+  'B' smooth
+  'a' yellow
+  'A' green
+]
+
+Parent genotype 1: AaBb
+Parent genotype 2: Aabb
+
 /offs
 
 --Population description--
