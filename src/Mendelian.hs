@@ -8,6 +8,7 @@ module Mendelian where
 import Data.List
 import Data.Char
 import Data.Maybe
+import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
 --                       Data and types declaration
@@ -259,6 +260,13 @@ parseGenotype str gbs@(InputState _ alleles _ _ _)
     allelePairSorted a1@(Allele _ False _) a2@(Allele _ True _) = [(a2, a1)]
     allelePairSorted a1 a2 = [(a1, a2)]
 
+-- | Sort genotype pairs by the gene labels.
+sortGenotype :: [(Allele, Allele)] -> [(Allele, Allele)]
+sortGenotype lst = sortBy cnd lst
+  where
+    cnd pair1 pair2 = 
+                   compare (geneFromAllelePair pair1) (geneFromAllelePair pair2)
+
 -- | Concatenate lists. Ignore Nothings.
 pickyGlue :: Maybe [a] -> Maybe [a] -> Maybe [a]
 pickyGlue Nothing _           = Nothing
@@ -360,8 +368,10 @@ updateGenotype _ Nothing (InputState genes alleles _ g1 g2) =
           InputState genes alleles (Error "Input genotype parse error!") g1 g2
 updateGenotype parentN (Just genotype) gbs@(InputState genes alleles _ g1 g2) 
   | not (stat == OK) = InputState genes alleles stat g1 g2
-  | parentN == 1     = InputState genes alleles OK (Genotype genotype) g2
-  | parentN == 2     = InputState genes alleles OK g1 (Genotype genotype)
+  | parentN == 1     = InputState genes alleles OK 
+                                  (Genotype (sortGenotype genotype)) g2
+  | parentN == 2     = InputState genes alleles OK g1 
+                                  (Genotype (sortGenotype genotype))
   | otherwise = 
           InputState genes alleles (Error "Wrong parent number!") g1 g2
     where
@@ -371,9 +381,12 @@ updateGenotype parentN (Just genotype) gbs@(InputState genes alleles _ g1 g2)
 calculateOffsprings 
   :: InputState -- ^ Current input state
   -> Result
-calculateOffsprings gbs@(InputState _ _ _ g1@(Genotype pairs1) g2@(Genotype pairs2))
-  | (length pairs1) == 0 || (length pairs2) == 0 = 
+calculateOffsprings gbs@(InputState _ _ _ g1@(Genotype p1) g2@(Genotype p2))
+  | (length p1) == 0 || (length p2) == 0 = 
                         Result ("Parents genotype are not complete!") (Just gbs)
+  | Set.fromList (map geneFromAllelePair p1) /= 
+    Set.fromList (map geneFromAllelePair p2) =
+      Result ("Parents genes do not match!") (Just gbs) 
   | otherwise = Result (show (computeOffsprings g1 g2)) (Just gbs)
 
 -- | Parse command from input
