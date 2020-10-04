@@ -113,26 +113,27 @@ count = map (\xs@(x:_) -> (x, length xs)) . group . sort
 
 
 --------------------------------------------------------------------------------
--- 
+--                                  Input
 --------------------------------------------------------------------------------
+
 -- | State of the user input.
 data InputState = InputState {
     allGenes :: [Gen],        -- ^ All known genes.
-    allAlleles :: [Allele],   -- ^ All known genes.
+    allAlleles :: [Allele],   -- ^ All known alleles.
     lastOpSuccessful :: Bool, -- ^ Whether the last command finished ok.
     p1Geno :: Genotype,       -- ^ Genotype of parent 1.
     p2Geno :: Genotype        -- ^ Genotype of parent 2.
   }
   deriving (Show)    
 
+-- | Wrappers for the user commands.
 data Command
-  = AddGene String
-  | ShowGenoBase
-  | AddAllele String
-  | SetParentGeno Int String
-  | CalcOffsprings
-  | Error String
-  | Show
+  = AddGene String           -- ^ Parse gene and add it to the state.
+  | AddAllele String         -- ^ Parse allele and add it to the state.
+  | SetParentGeno Int String -- ^ Parse parent genotype and add it to the state.
+  | CalcOffsprings           -- ^ Calculate offsprings
+  | Error String             -- ^ Typo input
+  | Show                     -- ^ Show current state
   | Exit
   deriving (Show)
 
@@ -140,9 +141,9 @@ data Result = Result String (Maybe InputState)
 
 -- | Make Gen from string "B trait description".
 parseGene 
-  :: String -- ^ Given string.
-  -> InputState
-  -> Maybe Gen
+  :: String     -- ^ Given gene description string.
+  -> InputState -- ^ Current input state.
+  -> Maybe Gen  -- ^ Returns Nothing if parsing failed.
 parseGene input _ = makeGene lbl trait
   where
     lbl = (listToMaybe (take 1 input))
@@ -154,10 +155,12 @@ parseGene input _ = makeGene lbl trait
 
 -- | Make Allele from string "b trait expression".
 parseAllele 
-  :: String 
-  -> InputState  -- ^ List of known genes.
-  -> Maybe Allele
-parseAllele input (InputState genes _ _ _ _)  = makeAllele (lookUpGene lbl) trait (checkIfDominant lbl) 
+  :: String       -- ^ Given allele description string.
+  -> InputState   -- ^ Current input state.
+  -> Maybe Allele -- ^ Returns Nothing if parsing failed.
+parseAllele input (InputState genes _ _ _ _) = makeAllele (lookUpGene lbl) 
+                                                          trait 
+                                                          (checkIfDominant lbl) 
   where
     lbl = (listToMaybe (take 1 input))
     trait = drop 2 input
@@ -172,11 +175,6 @@ parseAllele input (InputState genes _ _ _ _)  = makeAllele (lookUpGene lbl) trai
     makeAllele _ "" _ = Nothing
     makeAllele (Just l) t isDominant = Just (Allele l isDominant t)
 
--- | Add to a list if element is not Nothing.
-glue :: Maybe a -> [a] -> [a]
-glue Nothing lst = lst
-glue (Just g) lst = g:lst
-
 -- | Look for the gene with the specified label.
 findGene 
   :: Label -- ^ Specified label.
@@ -189,29 +187,43 @@ findGene lbl genes = find cnd genes
 -- | Look for the allele associated with the gene with the specified label.
 -- Label is case-sensitive and represents the dominance of the allele.
 findAllele 
-  :: Label    -- ^ Specified label. Case-sensitive.
-  -> [Allele] -- ^ List of alleles.
+  :: Maybe Label  -- ^ Specified label. Case-sensitive.
+  -> [Allele]     -- ^ List of alleles.
   -> Maybe Allele
-findAllele lbl alleles = find cnd alleles
+findAllele Nothing _ = Nothing
+findAllele (Just lbl) alleles = find cnd alleles
   where
-    cnd (Allele (Gen geneLabel _) isDominant _) = (geneLabel == (toLower lbl)) && (isDominant == (isUpper lbl)) 
+    cnd (Allele (Gen geneLabel _) isDominant _) = (geneLabel == (toLower lbl)) 
+                                               && (isDominant == (isUpper lbl)) 
 
 -- | Create pairs of alleles based on the given genotype string.
 -- Examples: "AABb" / "Aabb".
--- Returns Nothing if at least one allele is not defined in the given list.
 parseGenotype 
   :: String -- ^ Given genotype string.
-  -> InputState -- ^ 
-  -> Maybe [(Allele, Allele)]
-parseGenotype "" _ = Nothing
-parseGenotype (a:b:rest) gbs@(InputState _ alleles _ _ _) = newAlleleLst (makeAllelePair (findAllele a alleles) (findAllele b alleles))
+  -> InputState -- ^ Current input state.
+  -> Maybe [(Allele, Allele)] 
+    -- ^ Returns Nothing if string length is not a multiple of 2.
+    -- OR if at least one allele is not defined in the given list.
+parseGenotype "" _ = Nothing 
+parseGenotype str gbs@(InputState _ alleles _ _ _)
+  | (length str) `mod` 2 /= 0 = Nothing
+  | otherwise = newAlleleLst (makeAllelePair (findAllele a alleles)
+                                             (findAllele b alleles))
   where
+    a = listToMaybe (take 1 str)
+    b = listToMaybe (drop 1 (take 2 str))
+    rest = drop 2 str
+
     newAlleleLst Nothing = Nothing
     newAlleleLst pair = (pickyGlue pair (parseGenotype rest gbs))
 
     makeAllelePair Nothing _ = Nothing
     makeAllelePair _ Nothing = Nothing
-    makeAllelePair (Just a1) (Just a2) = Just [(a1, a2)]
+    makeAllelePair (Just a1) (Just a2) = Just (allelePairSorted a1 a2)
+    
+    allelePairSorted a1@(Allele _ True _) a2@(Allele _ False _) = [(a1, a2)]
+    allelePairSorted a1@(Allele _ False _) a2@(Allele _ True _) = [(a2, a1)]
+    allelePairSorted a1 a2 = [(a1, a2)]
 
 -- | Concatenate lists. Ignore Nothings.
 pickyGlue :: Maybe [a] -> Maybe [a] -> Maybe [a]
@@ -220,13 +232,52 @@ pickyGlue Nothing l = l
 pickyGlue l Nothing = l
 pickyGlue (Just l1) (Just l2) = Just (l1 ++ l2)
 
--- |
+-- | Check if genotype is valid. 
+genotypeValid
+  :: InputState         -- ^ Current input state.
+  -> [(Allele, Allele)] -- ^ Genotype (pairs of alleles) to check.
+  -> Bool               -- ^ True if valid, False otherwise
+genotypeValid (InputState genes _ _ _ _) pairs = lengthVariant    
+                                        -- String length should be == genesN * 2
+                                              && sameGenePerPairs 
+                                        -- Allele pairs should refer to the 
+                                        -- same gene
+                                              && allGenesOnlyOnce 
+                                        -- There should not be any repetitions 
+                                        -- of genes among allele pairs
+  where
+    lengthVariant = (length pairs) == (length genes)
+    sameGenePerPairs = and (map sameGeneInAllelePair pairs)
+
+    allGenesOnlyOnce = 
+                    (length allProvidedGenes) == (length allProvidedUniqueGenes)
+    allProvidedGenes = map geneFromAllelePair pairs 
+    allProvidedUniqueGenes = nub allProvidedGenes
+
+-- | Check if pair of alleles refer to the same gene.
+-- Misc function used in genotypeValid. 
+sameGeneInAllelePair :: (Allele, Allele) -> Bool
+sameGeneInAllelePair allelePair = g1 == g2
+  where
+    (g1, g2) = genesFromAllelePair allelePair
+
+-- | Get genes from the pair of alleles.
+-- Misc function used in genotypeValid. 
+genesFromAllelePair :: (Allele, Allele) -> (Gen, Gen)
+genesFromAllelePair ((Allele g1 _ _), (Allele g2 _ _)) = (g1, g2)
+
+-- | Get the gene from the first allele of the given pair.
+-- Misc function used in genotypeValid. 
+geneFromAllelePair :: (Allele, Allele) -> Gen
+geneFromAllelePair ((Allele g1 _ _), _) = g1
+
+-- | Updates the input state based on the provided methods.
 updateState 
-  :: String                                -- ^ What to parse
-  -> (String -> InputState -> Maybe a)     -- ^ How to parse
-  -> (Maybe a -> InputState -> InputState) -- ^ How to update the state
-  -> (String, String)                      -- ^ Success/Fail messages
-  -> InputState                            -- ^ Current input state
+  :: String                                -- ^ What to parse.
+  -> (String -> InputState -> Maybe a)     -- ^ How to parse.
+  -> (Maybe a -> InputState -> InputState) -- ^ How to update the state.
+  -> (String, String)                      -- ^ Success/Fail messages.
+  -> InputState                            -- ^ Current input state.
   -> Result
 updateState str parseStr maybeUpdateState (successMsg, failMsg) gbs = 
   Result (ifSuccessThen newGBS successMsg failMsg)
@@ -235,45 +286,65 @@ updateState str parseStr maybeUpdateState (successMsg, failMsg) gbs =
     parsed = parseStr str gbs
     newGBS = maybeUpdateState parsed gbs
 
-updateGene :: Maybe Gen -> InputState -> InputState
+    ifSuccessThen (InputState _ _ True _ _) x _ = x
+    ifSuccessThen (InputState _ _ False _ _) _ x = x
+
+-- | Add new gene to the genes list in the input state.
+updateGene 
+  :: Maybe Gen  -- ^ Gene to add.
+  -> InputState -- ^ Current input state.
+  -> InputState
 updateGene Nothing (InputState genes alleles _ g1 g2) = 
                                             InputState genes alleles False g1 g2
-updateGene gene (InputState genes alleles _ g1 g2) = 
-                                          InputState newGenes alleles True g1 g2
+updateGene (Just gene) (InputState genes alleles _ g1 g2)
+  | elem gene genes = InputState genes alleles False g1 g2
+                                                          -- Gene already exists
+  | otherwise = InputState newGenes alleles True g1 g2
   where
-    newGenes = glue gene genes
+    newGenes = gene:genes
 
-updateAllele :: Maybe Allele -> InputState -> InputState
+-- | Add new allele to the alleles list in the input state.
+updateAllele 
+  :: Maybe Allele -- ^ Allele to add.
+  -> InputState   -- ^ Current input state.
+  -> InputState
 updateAllele Nothing (InputState genes alleles _ g1 g2) = 
                                             InputState genes alleles False g1 g2
-updateAllele allele (InputState genes alleles _ g1 g2) = 
-                                          InputState genes newAlleles True g1 g2
+updateAllele (Just allele) (InputState genes alleles _ g1 g2)
+  | elem allele alleles = InputState genes alleles False g1 g2 
+                                                        -- Allele already exists
+  | otherwise = InputState genes newAlleles True g1 g2
   where
-    newAlleles = glue allele alleles
+    newAlleles = allele:alleles
 
-updateGenotype :: Int -> Maybe [(Allele, Allele)] -> InputState -> InputState
+-- | Set the genotype of the specified parent.
+updateGenotype 
+  :: Int                      -- ^ Parent # (can be 1 or 2)
+  -> Maybe [(Allele, Allele)] -- ^ New genotype (pairs of alleles) of the parent
+  -> InputState               -- ^ Current input state
+  -> InputState
 updateGenotype _ Nothing (InputState genes alleles _ g1 g2) = 
                                             InputState genes alleles False g1 g2
-updateGenotype parentN (Just genotype) (InputState genes alleles _ g1 g2) 
+updateGenotype parentN (Just genotype) gbs@(InputState genes alleles _ g1 g2) 
+  | not (genotypeValid gbs genotype) = InputState genes alleles False g1 g2
   | parentN == 1 = InputState genes alleles True (Genotype genotype) g2
   | parentN == 2 = InputState genes alleles True g1 (Genotype genotype)
   | otherwise = InputState genes alleles False g1 g2
 
-calculateOffsprings :: InputState -> Result
+-- | Wrapper for computeOffsprings.
+calculateOffsprings 
+  :: InputState -- ^ Current input state
+  -> Result
 calculateOffsprings gbs@(InputState _ _ _ g1 g2) = 
   Result
   (show (computeOffsprings g1 g2))
   (Just gbs)
 
-ifSuccessThen :: InputState -> b -> b -> b
-ifSuccessThen (InputState _ _ True _ _) x _ = x
-ifSuccessThen (InputState _ _ False _ _) _ x = x
-
 parseCommand :: String -> Command
 parseCommand input =
   case words input of
     ["/exit"]   -> Exit
-    ("/gene":_) -> AddGene (drop 6 input)
+    ("/gen":_) -> AddGene (drop 5 input)
     ("/geno1":_) -> SetParentGeno 1 (drop 7 input)
     ("/geno2":_) -> SetParentGeno 2 (drop 7 input)
     ("/allele":_) -> AddAllele (drop 8 input)
@@ -297,9 +368,10 @@ handleCommand command =
                                      ("Gene added!", "Adding gene failed!")
     AddAllele alleleStr -> updateState alleleStr parseAllele updateAllele 
                                      ("Allele added!", "Adding allele failed!")
-    SetParentGeno n genoStr -> updateState genoStr parseGenotype (updateGenotype n) 
-                                     ("Parent " ++ (show n) ++ " genotype set!", 
-                                      "Setting parent " ++ (show n) ++ " genotype failed!")
+    SetParentGeno n genoStr -> updateState genoStr parseGenotype 
+                           (updateGenotype n) 
+                           ("Parent " ++ (show n) ++ " genotype set!", 
+                           "Setting parent " ++ (show n) ++ " genotype failed!")
     CalcOffsprings      -> calculateOffsprings
 
 executeCommand :: InputState -> (InputState -> Result) -> IO ()
@@ -317,7 +389,7 @@ runWith state = do
   executeCommand state (handleCommand (parseCommand input))
 
 --------------------------------------------------------------------------------
--- 
+--                              End of Input
 --------------------------------------------------------------------------------
 
 run :: IO ()
