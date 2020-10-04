@@ -67,7 +67,7 @@ The following commands are implemented for user communication with the library:
 The command adds new gen to the state for the further procession.
 
 ```
-/allele <gen label> <trait expression>
+/allele <allele label> <trait expression>
 ```
 The command adds new gen to the state for the further procession. Label should match with one of the gens presented via `/gen` command. Lower or upper case of the label signs the dominance of the allele.
 
