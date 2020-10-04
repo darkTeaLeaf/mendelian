@@ -20,7 +20,6 @@ type IsDominant = Bool
 type Ratio = Double
 
 data Gen =  Gen Label Trait
-  deriving (Show)
 
 data Allele = Allele Gen IsDominant TraitExpression
 
@@ -33,10 +32,38 @@ data Population = Population [(Genotype, Ratio)]
 
 data PopulationPhenotype = PopulationPhenotype [(Phenotype, Ratio)]
 
+-- | State of the user input.
+data InputState = InputState {
+    allGenes :: [Gen],        -- ^ All known genes.
+    allAlleles :: [Allele],   -- ^ All known alleles.
+    status :: Status,         -- ^ Status of the last command
+    p1Geno :: Genotype,       -- ^ Genotype of parent 1.
+    p2Geno :: Genotype        -- ^ Genotype of parent 2.
+  }   
+
+-- | Wrappers for the user commands.
+data Command
+  = AddGene String           -- ^ Parse gene and add it to the state.
+  | AddAllele String         -- ^ Parse allele and add it to the state.
+  | SetParentGeno Int String -- ^ Parse parent genotype and add it to the state.
+  | CalcOffsprings           -- ^ Calculate offsprings
+  | Typo String             -- ^ Typo input
+  | Show                     -- ^ Show current state
+  | Exit
+  deriving (Show)
+
+data Result = Result String (Maybe InputState)
+
+data Status = OK | Error String
+ deriving (Show, Eq) 
+
 --------------------------------------------------------------------------------
 --                              Data Class instances
 --------------------------------------------------------------------------------
 
+instance Show Gen where
+  show (Gen l tr) = show (toLower l) ++ " " ++ tr
+  
 instance Eq Gen where
   (Gen label1 _) == (Gen label2 _) = label1 == label2
   
@@ -57,8 +84,7 @@ instance Show Allele where
   show (Allele (Gen l _) False tr)= show (toLower l) ++ " " ++ tr
 
 instance Show Phenotype where
-  show (Phenotype phenotype) = "\nPhenotype: " 
-                            ++ alleleString phenotype 
+  show (Phenotype phenotype) =  alleleString phenotype 
                             ++ generPhenoString phenotype
     where
       generPhenoString :: [Allele] -> [Char]
@@ -68,7 +94,7 @@ instance Show Phenotype where
               ++ expr ++ generPhenoString rest
 
 instance Show Genotype where
-  show (Genotype genotype) = "\nGenotype: " ++ genotypeString genotype
+  show (Genotype genotype) = genotypeString genotype
     where
       genotypeString :: [(Allele, Allele)] -> String
       genotypeString genot = alleleString (flatten genot)
@@ -83,10 +109,22 @@ instance Show Population where
     where
       speciesDescrip :: [(Genotype, Ratio)] -> String
       speciesDescrip [] = ""
-      speciesDescrip ((genotype, ratio) : rest) = show genotype
+      speciesDescrip ((genotype, ratio) : rest) = 
+           "\nGenotype: " ++ show genotype
         ++ "\nGenotype ratio: " ++ show ratio
-        ++ show (genoToPheno genotype) ++ "\n" ++ speciesDescrip rest
+        ++ "\nPhenotype: " ++ show (genoToPheno genotype) ++ "\n" 
+        ++ speciesDescrip rest
 
+instance Show InputState where
+  show inputstate = "\n--Current state--\n" 
+                   ++ stateDescrip inputstate
+    where
+      stateDescrip :: InputState -> String
+      stateDescrip (InputState genes alleles _ p1G p2G) = 
+             "\nGenes:   [\n" ++ listShow genes show ++ "]\n"
+          ++ "\nAlleles: [\n" ++ listShow alleles show ++ "]\n"
+          ++ "\nParent genotype 1: " ++ show p1G
+          ++ "Parent genotype 2: " ++ show p2G ++ "\n"
 
 --------------------------------------------------------------------------------
 --                              Compute generations
@@ -146,32 +184,6 @@ count = map (\xs@(x:_) -> (x, length xs)) . group . sort
 --------------------------------------------------------------------------------
 --                                  Input
 --------------------------------------------------------------------------------
-
--- | State of the user input.
-data InputState = InputState {
-    allGenes :: [Gen],        -- ^ All known genes.
-    allAlleles :: [Allele],   -- ^ All known alleles.
-    status :: Status,         -- ^ Status of the last command
-    p1Geno :: Genotype,       -- ^ Genotype of parent 1.
-    p2Geno :: Genotype        -- ^ Genotype of parent 2.
-  }
-  deriving (Show)    
-
--- | Wrappers for the user commands.
-data Command
-  = AddGene String           -- ^ Parse gene and add it to the state.
-  | AddAllele String         -- ^ Parse allele and add it to the state.
-  | SetParentGeno Int String -- ^ Parse parent genotype and add it to the state.
-  | CalcOffsprings           -- ^ Calculate offsprings
-  | Typo String             -- ^ Typo input
-  | Show                     -- ^ Show current state
-  | Exit
-  deriving (Show)
-
-data Result = Result String (Maybe InputState)
-
-data Status = OK | Error String
- deriving (Show, Eq) 
 
 -- | Make Gen from string "B trait description".
 parseGene 
@@ -465,6 +477,10 @@ changeCase :: Char -> Bool -> Char
 changeCase c isDom
   | isDom     = toUpper c
   | otherwise = toLower c
+
+-- | Transform list of object to String using special function
+listShow :: [a] -> (a -> String) -> String
+listShow lst func = concat (map (\x -> "  " ++ x ++ "\n") (map func lst))
 
 --------------------------------------------------------------------------------
 --                              Main part
