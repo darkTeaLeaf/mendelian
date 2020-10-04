@@ -1,7 +1,14 @@
+{-# OPTIONS_GHC -Wall -fno-warn-type-defaults -fdefer-typed-holes #-}
+{-# OPTIONS_GHC -fshow-hole-constraints -funclutter-valid-hole-fits #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Mendelian where
 
 import Data.List
 import Data.Char
+--import Text.Read
+import Data.Maybe
 
 -- ##########################
 -- DATA AND TYPES DECLARATION
@@ -48,8 +55,8 @@ instance Ord Allele where
     | otherwise  = compare isDominant1 isDominant2
 
 instance Show Allele where
-  show (Allele (Gen l _) True _) = show (toUpper l)
-  show (Allele (Gen l _) False _)= show (toLower l)
+  show (Allele (Gen l _) True tr) = show (toUpper l) ++ " " ++ tr
+  show (Allele (Gen l _) False tr)= show (toLower l) ++ " " ++ tr
 
 -- ###################
 -- COMPUTE GENERATIONS
@@ -104,10 +111,225 @@ count = map (\xs@(x:_) -> (x, length xs)) . group . sort
 --commandHandler :: IO()
 -- look task manager lab 2-3
 
+
+--------------------------------------------------------------------------------
+-- 
+--------------------------------------------------------------------------------
+makeAlleleLbl :: Label -> IsDominant -> String
+makeAlleleLbl c True = ([toUpper c, toUpper c]) ++ "/" ++ ([toUpper c, toLower c])
+makeAlleleLbl c False = [toLower c, toLower c]
+
+parseGene :: String -> Maybe Gen
+parseGene input = makeGene lbl trait
+  where
+    lbl :: Maybe Char
+    lbl = (listToMaybe (take 1 input))
+
+    trait :: String
+    trait = drop 2 input
+
+    makeGene :: Maybe Char -> String -> Maybe Gen
+    makeGene Nothing _ = Nothing
+    makeGene _ "" = Nothing
+    makeGene (Just l) t = Just (Gen (toLower l) t)
+
+parseAllele :: [Gen] -> String -> Maybe Allele
+parseAllele genes input = makeAllele (lookUpGene lbl) trait (checkIfDominant lbl) 
+  where
+    lbl :: Maybe Char
+    lbl = (listToMaybe (take 1 input))
+
+    trait :: String
+    trait = drop 2 input
+
+    checkIfDominant :: Maybe Label -> IsDominant
+    checkIfDominant Nothing = False
+    checkIfDominant (Just c) = isUpper c
+
+    lookUpGene :: Maybe Label -> Maybe Gen
+    lookUpGene Nothing = Nothing
+    lookUpGene (Just l) = findGene l genes
+
+    makeAllele :: Maybe Gen -> String -> IsDominant -> Maybe Allele
+    makeAllele Nothing _ _ = Nothing
+    makeAllele _ "" _ = Nothing
+    makeAllele (Just l) t isDominant = Just (Allele l isDominant t)
+
+data GenoBaseInputState = GenoBaseInputState [Gen] [Allele] Bool Genotype Genotype
+  deriving (Show)    
+
+glue :: Maybe a -> [a] -> [a]
+glue Nothing lst = lst
+glue (Just g) lst = g:lst
+
+glueAlleles :: Maybe Allele -> Maybe Allele -> [Allele] -> [Allele]
+glueAlleles Nothing Nothing lst = lst
+glueAlleles Nothing (Just al) lst = al:lst
+glueAlleles (Just al) Nothing lst = al:lst
+glueAlleles (Just al) (Just ar) lst = [al, ar] ++ lst
+
+findGene :: Label -> [Gen] -> Maybe Gen
+findGene lbl genes = find cnd genes
+  where
+    cnd (Gen geneLabel _) = geneLabel == (toLower lbl) 
+
+findAllele :: Label -> [Allele] -> Maybe Allele
+findAllele lbl alleles = find cnd alleles
+  where
+    cnd (Allele (Gen geneLabel _) isDominant _) = (geneLabel == (toLower lbl)) && (isDominant == (isUpper lbl)) 
+
+makeGenotype :: String -> [Allele] -> Maybe [(Allele, Allele)]
+makeGenotype "" _ = Nothing
+makeGenotype (a:b:rest) alleles = newAlleleLst (makeAllelePair (findAllele a alleles) (findAllele b alleles))
+  where
+    newAlleleLst :: Maybe [(Allele, Allele)] -> Maybe [(Allele, Allele)]
+    newAlleleLst Nothing = Nothing
+    newAlleleLst pair = (pickyGlue pair (makeGenotype rest alleles))
+
+    makeAllelePair :: Maybe Allele -> Maybe Allele -> Maybe [(Allele, Allele)]
+    makeAllelePair Nothing _ = Nothing
+    makeAllelePair _ Nothing = Nothing
+    makeAllelePair (Just a1) (Just a2) = Just [(a1, a2)]
+
+pickyGlue :: Maybe [a] -> Maybe [a] -> Maybe [a]
+pickyGlue Nothing Nothing = Nothing
+pickyGlue Nothing l = l
+pickyGlue l Nothing = l
+pickyGlue (Just l1) (Just l2) = Just (l1 ++ l2)
+
+data Result = Result String (Maybe GenoBaseInputState)
+
+data Command
+  = AddGene String
+  | ShowGenoBase
+  | AddAllele String
+  | SetP1Geno String
+  | SetP2Geno String
+  | CalcOffsprings
+  | Error String
+  | Show
+  | NOP
+  | Exit
+  deriving (Show)
+
+addGene :: String -> GenoBaseInputState -> Result
+addGene geneStr (GenoBaseInputState genes alleles _ g1 g2) = Result
+  (ifSuccessThen newGBS "Gene added!" "Adding gene failed!")
+  (Just newGBS)
+  where
+    parsedGene = parseGene geneStr
+    newGenes = glue parsedGene genes
+
+    newGBS :: GenoBaseInputState
+    newGBS = maybeUpdateGBS parsedGene
+
+    maybeUpdateGBS :: Maybe Gen -> GenoBaseInputState
+    maybeUpdateGBS Nothing = (GenoBaseInputState genes alleles False g1 g2)
+    maybeUpdateGBS (Just _) = (GenoBaseInputState newGenes alleles True g1 g2)
+
+addAllele :: String -> GenoBaseInputState -> Result
+addAllele alleleStr (GenoBaseInputState genes alleles _ g1 g2) = Result
+  (ifSuccessThen newGBS "Allele added!" "Adding allele failed!")
+  (Just newGBS)
+  where
+    parsedAllele = parseAllele genes alleleStr
+    newAlleles = glue parsedAllele alleles
+
+    newGBS :: GenoBaseInputState
+    newGBS = maybeUpdateGBS parsedAllele
+
+    maybeUpdateGBS :: Maybe Allele -> GenoBaseInputState
+    maybeUpdateGBS Nothing = (GenoBaseInputState genes alleles False g1 g2)
+    maybeUpdateGBS (Just _) = (GenoBaseInputState genes newAlleles True g1 g2)
+
+setParentGeno :: String -> Int -> GenoBaseInputState -> Result
+setParentGeno genoStr parentN gbs@(GenoBaseInputState genes alleles _ g1 g2) = 
+  Result
+  (ifSuccessThen newGBS ("Parent " ++ (show parentN) ++ "genotype set!") ("Setting parent " ++ (show parentN) ++ " genotype failed!"))
+  (Just newGBS)
+  where
+    newGeno = makeGenotype genoStr alleles
+
+    newGBS :: GenoBaseInputState
+    newGBS = maybeUpdateGBS newGeno
+
+    maybeUpdateGBS :: Maybe [(Allele, Allele)] -> GenoBaseInputState
+    maybeUpdateGBS Nothing = (GenoBaseInputState genes alleles False g1 g2)
+    maybeUpdateGBS (Just ng) = updateGenotype (Genotype ng) -- (GenoBaseInputState genes alleles True (Genotype newP1Geno) g2)
+
+    updateGenotype genotype
+      | parentN == 1 = GenoBaseInputState genes alleles True genotype g2
+      | parentN == 2 = GenoBaseInputState genes alleles True g1 genotype
+      | otherwise = gbs
+
+calculateOffsprings :: GenoBaseInputState -> Result
+calculateOffsprings gbs@(GenoBaseInputState _ _ _ g1 g2) = 
+  Result
+  (show (computeOffsprings g1 g2))
+  (Just gbs)
+
+ifNothingThen :: Maybe a -> b -> b -> b
+ifNothingThen Nothing x _ = x
+ifNothingThen _ _ x = x
+
+ifSuccessThen :: GenoBaseInputState -> b -> b -> b
+ifSuccessThen (GenoBaseInputState _ _ True _ _) x _ = x
+ifSuccessThen (GenoBaseInputState _ _ False _ _) _ x = x
+
+parseCommand :: String -> Command
+parseCommand input =
+  case words input of
+    ["/exit"]   -> Exit
+    ("/gene":_) -> AddGene (drop 6 input)
+    ("/geno1":_) -> SetP1Geno (drop 7 input)
+    ("/geno2":_) -> SetP2Geno (drop 7 input)
+    ("/allele":_) -> AddAllele (drop 8 input)
+    ["/offs"] -> CalcOffsprings
+    ["/show"] -> Show
+    [""] -> NOP -- ?????
+    _      -> Error input
+
+handleCommand :: Command -> (GenoBaseInputState -> Result)
+handleCommand command =
+  case command of
+    Exit             -> (\_state -> Result "Bye!" Nothing)
+    NOP              -> (\_state -> Result "" (Just _state))
+    Error input       -> (\_state -> Result ("Unknown command '" ++ input ++ "'") (Just _state))
+    Show -> (\_state -> Result (show _state) (Just _state))
+    AddGene geneStr   -> addGene geneStr
+    AddAllele alleleStr   -> addAllele alleleStr
+    SetP1Geno genoStr -> setParentGeno genoStr 1
+    SetP2Geno genoStr -> setParentGeno genoStr 2
+    CalcOffsprings -> calculateOffsprings
+
+executeCommand :: GenoBaseInputState -> (GenoBaseInputState -> Result) -> IO ()
+executeCommand state handler =
+  case handler state of
+    Result msg newState -> do
+      putStrLn msg
+      case newState of
+        Nothing               -> return ()
+        Just actuallyNewState -> runWith actuallyNewState
+
+runWith :: GenoBaseInputState -> IO ()
+runWith state = do
+  input <- getLine
+  executeCommand state (handleCommand (parseCommand input))
+
+--------------------------------------------------------------------------------
+-- 
+--------------------------------------------------------------------------------
+
+genoBaseInputIO :: String -> GenoBaseInputState -> (String -> GenoBaseInputState -> GenoBaseInputState) -> IO (GenoBaseInputState)
+genoBaseInputIO input gbs updateGBS = do
+  return (updateGBS input gbs)
+
 run :: IO ()
-run = do
-  let a = Gen 'a' "color"
+run = runWith (GenoBaseInputState [] [] True (Genotype []) (Genotype []))
+  {-let a = Gen 'a' "color"
   let b = Gen 'b' "smoothness"
   let dad = Genotype [((Allele a True "green"), (Allele a True "green")), ((Allele b True "smooth"), (Allele b True "smooth"))]
   let mom = Genotype [((Allele a True "green"), (Allele a False "yellow")), ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
-  print (computeOffsprings dad mom)
+  print (computeOffsprings dad mom) -}
+  --putStrLn "Please input the number of genes: "
+  
