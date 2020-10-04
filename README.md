@@ -57,14 +57,6 @@ During development it is recommended a combination of `build` and `exec`:
 stack build && stack exec mendelian-exe
 ```
 
-Alternatively, you can run
-
-```
-stack build file-watch
-```
-
-For continuous builds in the background.
-
 ## Usage
 
 The following commands are implemented for user communication with the library:
