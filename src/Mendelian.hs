@@ -179,9 +179,6 @@ count = map (\xs@(x:_) -> (x, length xs)) . group . sort
 
 --guessParentsChildren :: PopulationPhenotype-> PopulationPhenotype-> Population
 
---commandHandler :: IO()
--- look task manager lab 2-3
-
 --------------------------------------------------------------------------------
 --                                  Input
 --------------------------------------------------------------------------------
