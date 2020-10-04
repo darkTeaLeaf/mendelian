@@ -124,7 +124,7 @@ instance Show InputState where
              "\nGenes:   [\n" ++ listShow genes show ++ "]\n"
           ++ "\nAlleles: [\n" ++ listShow alleles show ++ "]\n"
           ++ "\nParent genotype 1: " ++ show p1G
-          ++ "Parent genotype 2: " ++ show p2G ++ "\n"
+          ++ "\nParent genotype 2: " ++ show p2G ++ "\n"
 
 --------------------------------------------------------------------------------
 --                              Compute generations
@@ -383,9 +383,11 @@ updateGenotype parentN (Just genotype) gbs@(InputState genes alleles _ g1 g2)
 calculateOffsprings 
   :: InputState -- ^ Current input state
   -> Result
-calculateOffsprings gbs@(InputState _ _ _ g1@(Genotype pairs1) g2@(Genotype pairs2))
-  | (length pairs1) == 0 || (length pairs2) == 0 = 
+calculateOffsprings gbs@(InputState _ _ _ g1@(Genotype p1) g2@(Genotype p2))
+  | (length p1) == 0 || (length p2) == 0 = 
                         Result ("Parents genotype are not complete!") (Just gbs)
+  | not ((length p1) == (length p2)) = 
+                   Result ("Parents genotype length does not match!") (Just gbs)
   | otherwise = Result (show (computeOffsprings g1 g2)) (Just gbs)
 
 -- | Parse command from input
