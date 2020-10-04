@@ -177,9 +177,37 @@ run :: IO ()
 run = do
   let a = Gen 'a' "color"
   let b = Gen 'b' "smoothness"
-  let dad = Genotype [((Allele a True "green"), (Allele a True "green")), ((Allele b True "smooth"), (Allele b False "wrinkle"))]
-  let mom = Genotype [((Allele a True "green"), (Allele a False "yellow")), ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
 
---  print (genoToPheno dad)
---  print (genoToPheno mom)
-  print (computeOffsprings dad mom)
+  let dad0 = Genotype [((Allele a True "green"), (Allele a True "green")), 
+                       ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
+  let mom0 = Genotype [((Allele a True "green"), (Allele a True "green")), 
+                      ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
+
+  print (genoToPheno dad0)
+  print (genoToPheno mom0)
+  print (computeOffsprings dad0 mom0)
+
+  print ("----------------------------------------------")
+
+  let dad1 = Genotype [((Allele a True "green"), (Allele a True "green")), 
+                       ((Allele b True "smooth"), (Allele b False "wrinkle"))]
+  let mom1 = Genotype [((Allele a True "green"), (Allele a False "yellow")), 
+                      ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
+
+  print (genoToPheno dad1)
+  print (genoToPheno mom1)
+  print (computeOffsprings dad1 mom1)
+
+  print ("----------------------------------------------")
+
+  let c = Gen 'c' "smell"
+  let dad2 = Genotype [((Allele a True "green"), (Allele a False "yellow")), 
+                       ((Allele b True "smooth"), (Allele b False "wrinkle")), 
+                       ((Allele c False "rose"), (Allele c False "rose"))]
+  let mom2 = Genotype [((Allele a True "green"), (Allele a False "yellow")), 
+                       ((Allele b True "smooth"), (Allele b False "wrinkle")), 
+                      ((Allele c True "cucumber"), (Allele c True "cucumber"))]
+
+  print (genoToPheno dad2)
+  print (genoToPheno mom2)
+  print (computeOffsprings dad2 mom2)
