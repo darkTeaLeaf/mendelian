@@ -102,4 +102,62 @@ Exit the program.
 
 Example is shown below:
 
-![Example](images/example.jpg)
+'''
+/gen a color
+Gene added!
+/gen b smoothness
+Gene added!
+/allele A green
+Allele added!
+/allele a yellow
+Allele added!
+/allele B smooth
+Allele added!
+/allele b wrinkle
+Allele added!
+/geno1 AaBb
+Parent 1 genotype set!
+/geno2 Aabb
+Parent 2 genotype set!
+/offs
+
+--Population description--
+
+Genotype: aabb
+Genotype ratio: 0.125
+Phenotype: ab
+a: color yellow
+b: smoothness wrinkle
+
+Genotype: aaBb
+Genotype ratio: 0.125
+Phenotype: aB
+a: color yellow
+B: smoothness smooth
+
+Genotype: Aabb
+Genotype ratio: 0.25
+Phenotype: Ab
+A: color green
+b: smoothness wrinkle
+
+Genotype: AaBb
+Genotype ratio: 0.25
+Phenotype: AB
+A: color green
+B: smoothness smooth
+
+Genotype: AAbb
+Genotype ratio: 0.125
+Phenotype: Ab
+A: color green
+b: smoothness wrinkle
+
+Genotype: AABb
+Genotype ratio: 0.125
+Phenotype: AB
+A: color green
+B: smoothness smooth
+
+/exit
+'''
