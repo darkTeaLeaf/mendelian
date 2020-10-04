@@ -90,13 +90,13 @@ instance Show Population where
 computeOffsprings :: Genotype -> Genotype -> Population
 computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
   numberToRatio
-  $ count
-  $ map (\a -> (Genotype a)) (generateCombinations possibleGens))
+  (count
+  ( map (\a -> (Genotype a)) (generateCombinations possibleGens))))
   
   where
     translate (x, y) = [x, y]
 
-    possibleGens = map (\pairs -> map(\(a1, a2)-> ordered a1 a2) pairs)
+    possibleGens = map (\pairs -> map (\(a1, a2)-> ordered a1 a2) pairs)
         (zipWith generatePairs (map translate parent1) (map translate parent2))
 
     ordered a1 a2
@@ -111,8 +111,8 @@ computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
 -- | Generate all possible tuple combinations from different lists
 generateCombinations :: [[(a, a)]] -> [[(a, a)]]
 generateCombinations [] = [[]]
-generateCombinations (x:xs) =  concat $ 
-    map (\i -> map (\iTail -> i:iTail)(generateCombinations xs)) x
+generateCombinations (x:xs) =  concat ( 
+    map (\i -> map (\iTail -> i:iTail) (generateCombinations xs)) x)
 
 -- | Generate all possible pairs of elements from different lists
 generatePairs :: [a] -> [a] -> [(a, a)]
