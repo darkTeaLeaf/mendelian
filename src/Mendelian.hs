@@ -7,12 +7,11 @@ module Mendelian where
 
 import Data.List
 import Data.Char
---import Text.Read
 import Data.Maybe
 
--- ##########################
--- DATA AND TYPES DECLARATION
--- ##########################
+--------------------------------------------------------------------------------
+--                       Data and types declaration
+--------------------------------------------------------------------------------
 
 type Label = Char
 type Trait = String
@@ -34,9 +33,9 @@ data Population = Population [(Genotype, Ratio)]
 
 data PopulationPhenotype = PopulationPhenotype [(Phenotype, Ratio)]
 
--- ####################
--- DATA CLASS INSTANCES
--- ####################
+--------------------------------------------------------------------------------
+--                              Data Class instances
+--------------------------------------------------------------------------------
 
 instance Eq Gen where
   (Gen label1 _) == (Gen label2 _) = label1 == label2
@@ -89,9 +88,9 @@ instance Show Population where
         ++ show (genoToPheno genotype) ++ "\n" ++ speciesDescrip rest
 
 
--- ###################
--- COMPUTE GENERATIONS
--- ###################
+--------------------------------------------------------------------------------
+--                              Compute generations
+--------------------------------------------------------------------------------
 
 -- | Compute all possible children genotypes from given parents
 computeOffsprings :: Genotype -> Genotype -> Population
@@ -139,7 +138,7 @@ count = map (\xs@(x:_) -> (x, length xs)) . group . sort
 
 --guessParentChildren :: Phenotype -> PopulationPhenotype -> Genotype
 
---guessParentsChildren :: PopulationPhenotype -> PopulationPhenotype -> Population
+--guessParentsChildren :: PopulationPhenotype-> PopulationPhenotype-> Population
 
 --commandHandler :: IO()
 -- look task manager lab 2-3
@@ -205,7 +204,7 @@ parseAllele input (InputState genes _ _ _ _) = makeAllele (lookUpGene lbl)
 
     makeAllele Nothing _ _ = Nothing
     makeAllele _ "" _ = Nothing
-    makeAllele (Just l) t isDominant = Just (Allele l isDominant t)
+    makeAllele (Just l) t isDom = Just (Allele l isDom t)
 
 -- | Look for the gene with the specified label.
 findGene 
@@ -225,8 +224,8 @@ findAllele
 findAllele Nothing _ = Nothing
 findAllele (Just lbl) alleles = find cnd alleles
   where
-    cnd (Allele (Gen geneLabel _) isDominant _) = (geneLabel == (toLower lbl)) 
-                                               && (isDominant == (isUpper lbl)) 
+    cnd (Allele (Gen geneLabel _) isDom _) = (geneLabel == (toLower lbl)) 
+                                               && (isDom == (isUpper lbl)) 
 
 -- | Create pairs of alleles based on the given genotype string.
 -- Examples: "AABb" / "Aabb".
@@ -421,12 +420,8 @@ runWith state = do
   executeCommand state (handleCommand (parseCommand input))
 
 --------------------------------------------------------------------------------
---                              End of Input
+--                              Useful utils
 --------------------------------------------------------------------------------
-=======
--- ############
--- USEFUL UTILS
--- ############
 
 
 -- | Check if allele is dominant
