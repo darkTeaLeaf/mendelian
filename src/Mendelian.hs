@@ -238,7 +238,7 @@ parseGenotype
   -> Maybe [(Allele, Allele)] 
     -- ^ Returns Nothing if string length is not a multiple of 2.
     -- OR if at least one allele is not defined in the given list.
-parseGenotype "" _ = Nothing 
+parseGenotype "" _ = (Just []) 
 parseGenotype str gbs@(InputState _ alleles _ _ _)
   | (length str) `mod` 2 /= 0 = Nothing
   | otherwise = newAlleleLst (makeAllelePair (findAllele a alleles)
@@ -261,9 +261,8 @@ parseGenotype str gbs@(InputState _ alleles _ _ _)
 
 -- | Concatenate lists. Ignore Nothings.
 pickyGlue :: Maybe [a] -> Maybe [a] -> Maybe [a]
-pickyGlue Nothing Nothing     = Nothing
-pickyGlue Nothing l           = l
-pickyGlue l Nothing           = l
+pickyGlue Nothing _           = Nothing
+pickyGlue _ Nothing           = Nothing
 pickyGlue (Just l1) (Just l2) = Just (l1 ++ l2)
 
 -- | Check if genotype is valid. 
@@ -372,10 +371,10 @@ updateGenotype parentN (Just genotype) gbs@(InputState genes alleles _ g1 g2)
 calculateOffsprings 
   :: InputState -- ^ Current input state
   -> Result
-calculateOffsprings gbs@(InputState _ _ _ g1 g2) = 
-  Result
-  (show (computeOffsprings g1 g2))
-  (Just gbs)
+calculateOffsprings gbs@(InputState _ _ _ g1@(Genotype pairs1) g2@(Genotype pairs2))
+  | (length pairs1) == 0 || (length pairs2) == 0 = 
+                        Result ("Parents genotype are not complete!") (Just gbs)
+  | otherwise = Result (show (computeOffsprings g1 g2)) (Just gbs)
 
 -- | Parse command from input
 parseCommand :: String -> Command
