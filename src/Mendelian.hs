@@ -29,7 +29,13 @@ data Genotype = Genotype [(Allele, Allele)]
 
 data Phenotype = Phenotype [Allele]
 
-data Population = Population [(Genotype, Ratio)]
+data Population = Population [(Genotype, Int)]
+
+instance Semigroup (Population) where
+  (<>) = merge2Populations
+
+instance Monoid (Population) where
+  mempty = Population []
 
 data PopulationPhenotype = PopulationPhenotype [(Phenotype, Ratio)]
 
@@ -106,7 +112,7 @@ instance Show Genotype where
 
 instance Show Population where
   show (Population population) = "\n--Population description--\n" 
-                              ++ speciesDescrip population
+                              ++ speciesDescrip (numberToRatio population)
     where
       speciesDescrip :: [(Genotype, Ratio)] -> String
       speciesDescrip [] = ""
@@ -134,7 +140,7 @@ instance Show InputState where
 -- | Compute all possible children genotypes from given parents
 computeOffsprings :: Genotype -> Genotype -> Population
 computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
-  numberToRatio
+  
   (count
   ( map (\a -> (Genotype a)) (generateCombinations possibleGens))))
   
@@ -149,9 +155,10 @@ computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
         LT -> (a2, a1)
         _  -> (a1, a2)
 
-    numberToRatio arr = map(\(x, num) -> (x, ratio num)) arr
-      where 
-        ratio num = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
+numberToRatio :: (Fractional b, Integral a1) => [(a2, a1)] -> [(a2, b)]
+numberToRatio arr = map(\(x, num) -> (x, ratio num)) arr
+  where 
+    ratio num = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
 
 -- | Generate all possible tuple combinations from different lists
 generateCombinations :: [[(a, a)]] -> [[(a, a)]]
@@ -172,6 +179,19 @@ simpleGen a (x:xs) = (a, x) : simpleGen a xs
 -- | Count and store the number of repeated elements
 count :: Ord a => Eq a => [a] -> [(a, Int)] 
 count = map (\xs@(x:_) -> (x, length xs)) . group . sort
+
+blow :: [(a, Int)] -> [a]
+blow [] = []
+blow ((e, times):xs) = replicate times e ++ (blow xs)
+
+mergeRatios :: (Ord a) => [(a, Int)] -> [(a, Int)] -> [(a, Int)]
+mergeRatios lst1 lst2 = count ((blow lst1) ++ (blow lst2))
+
+merge2Populations :: Population -> Population -> Population
+merge2Populations (Population p1) (Population p2) = Population (mergeRatios p1 p2)
+
+mergePopulations :: [Population] -> Population
+mergePopulations lst = mconcat lst
 
 --computeGeneration :: Population -> Population
 
