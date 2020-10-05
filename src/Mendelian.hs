@@ -184,7 +184,8 @@ mergeRatios :: (Ord a) => [(a, Int)] -> [(a, Int)] -> [(a, Int)]
 mergeRatios lst1 lst2 = count ((inflate lst1) ++ (inflate lst2))
 
 merge2Populations :: Population -> Population -> Population
-merge2Populations (Population p1) (Population p2) = Population (mergeRatios p1 p2)
+merge2Populations (Population p1) (Population p2) = Population 
+                                                    (mergeRatios p1 p2)
 
 mergePopulations :: [Population] -> Population
 mergePopulations lst = mconcat lst
@@ -540,8 +541,10 @@ run = do
   let a = Gen 'a' "color"
   let b = Gen 'b' "smoothness"
 
-  let dad0 = Genotype [((Allele a True "green"), (Allele a True "green")), ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
-  let mom0 = Genotype [((Allele a True "green"), (Allele a True "green")), ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
+  let dad0 = Genotype [((Allele a True "green"), (Allele a True "green")), 
+                       ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
+  let mom0 = Genotype [((Allele a True "green"), (Allele a True "green")), 
+                       ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
 
   print (genoToPheno dad0)
   print (genoToPheno mom0)
