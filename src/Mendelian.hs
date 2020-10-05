@@ -192,26 +192,26 @@ mergePopulations lst = mconcat lst
 --computeGeneration :: Population -> Population
 -- | Computes possible offsprings from parent population
 computeGeneration :: Population -> [Population]
-computeGeneration (Population parents) = 
-                                  map breeding (combinations (inflate parents))
+computeGeneration (Population parents) = map breeding 
+                         (combinations (length inflatedParents) inflatedParents)
   where 
     breeding :: (Genotype, Genotype) -> Population
     breeding (p1, p2) =  (computeOffsprings p1 p2)
+    inflatedParents = inflate parents
 
 -- | Make all possible combinations of objects in list
-combinations ::[a] -> [(a, a)]
-combinations [] = []
-combinations (x : xs) = [(x, y) | y <- xs] ++ combinations xs
+combinations ::Int -> [a] -> [(a, a)]
+combinations 0 _ = []
+combinations _ [] = []
+combinations n arr@(x:xs) = [(x, y) | y <- arr] ++ combinations (n-1) (xs++[x])
+
+-- | Breed the given population.
+breedPopulation :: Population -> Population
+breedPopulation = mergePopulations . computeGeneration
 
 --guessParentChildren :: Phenotype -> PopulationPhenotype -> Genotype
 
 --guessParentsChildren :: PopulationPhenotype-> PopulationPhenotype-> Population
-
-{--
-multRatio :: Population -> Ratio -> Population
-multRatio (Population population) rat = 
-                          Population(map (\(p, r) -> (p, r * rat)) population)
---}
 
 --------------------------------------------------------------------------------
 --                                  Input
@@ -572,6 +572,7 @@ run = do
   print (genoToPheno mom2)
   print (computeOffsprings dad2 mom2)
 
-  print("Input your command")
+  print (breedPopulation (computeOffsprings dad1 mom1))
 
+  print("Input your command")
   runWith (InputState [] [] OK (Genotype []) (Genotype []))
