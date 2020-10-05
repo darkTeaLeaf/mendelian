@@ -135,43 +135,37 @@ instance Show InputState where
 computeOffsprings :: Genotype -> Genotype -> Population
 computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
   numberToRatio
-  (count
-  ( map (\a -> (Genotype a)) (generateCombinations possibleGens))))
+  (count [(Genotype comb) | comb <- generateCombinations possibleGens]))
   
   where
+    possibleGens = [[ordered a b | (a, b) <- xs] | xs <- zipWith generatePairs 
+        (map translate parent1) (map translate parent2)]
+
     translate (x, y) = [x, y]
-
-    possibleGens = map (\pairs -> map (\(a1, a2)-> ordered a1 a2) pairs)
-        (zipWith generatePairs (map translate parent1) (map translate parent2))
-
     ordered a1 a2
       = case compare a1 a2 of 
         LT -> (a2, a1)
         _  -> (a1, a2)
 
-    numberToRatio arr = map(\(x, num) -> (x, ratio num)) arr
-      where 
-        ratio num = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
+    numberToRatio arr = [(x, ratio num arr) | (x, num) <- arr]
+    ratio num arr = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
 
 -- | Generate all possible tuple combinations from different lists
 generateCombinations :: [[(a, a)]] -> [[(a, a)]]
 generateCombinations [] = [[]]
-generateCombinations (x:xs) =  concat ( 
-    map (\i -> map (\iTail -> i:iTail) (generateCombinations xs)) x)
+generateCombinations (x:xs) = concat [[i:iTail | iTail <- generateCombinations xs] | i <- x]
 
 -- | Generate all possible pairs of elements from different lists
 generatePairs :: [a] -> [a] -> [(a, a)]
-generatePairs [] _ = []
-generatePairs (x: xs) ys = (simpleGen x ys) ++ (generatePairs xs ys) 
+generatePairs xs ys = concat [(simpleGen x ys) | x <- xs]
  
 -- | Generate all possible pairs with given element
 simpleGen :: a -> [a] -> [(a, a)]
-simpleGen _ [] = []
-simpleGen a (x:xs) = (a, x) : simpleGen a xs
+simpleGen a xs = [(a, x) | x <- xs]
 
 -- | Count and store the number of repeated elements
-count :: Ord a => Eq a => [a] -> [(a, Int)] 
-count = map (\xs@(x:_) -> (x, length xs)) . group . sort
+count :: Ord a => Eq a => [a] -> [(a, Int)]
+count list = [(x, length xs) | xs@(x:_) <- group (sort list)]
 
 --computeGeneration :: Population -> Population
 
