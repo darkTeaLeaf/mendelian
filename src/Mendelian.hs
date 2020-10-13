@@ -140,15 +140,12 @@ instance Show InputState where
 -- | Compute all possible children genotypes from given parents
 computeOffsprings :: Genotype -> Genotype -> Population
 computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
-  (count
-  ( map (\a -> (Genotype a)) (generateCombinations possibleGens))))
-  
+  (count [(Genotype comb) | comb <- generateCombinations possibleGens])) 
   where
+    possibleGens = [[ordered a b | (a, b) <- xs] | xs <- zipWith generatePairs 
+        (map translate parent1) (map translate parent2)]
+
     translate (x, y) = [x, y]
-
-    possibleGens = map (\pairs -> map (\(a1, a2)-> ordered a1 a2) pairs)
-        (zipWith generatePairs (map translate parent1) (map translate parent2))
-
     ordered a1 a2
       = case compare a1 a2 of 
         LT -> (a2, a1)
@@ -157,22 +154,19 @@ computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
 -- | Generate all possible tuple combinations from different lists
 generateCombinations :: [[(a, a)]] -> [[(a, a)]]
 generateCombinations [] = [[]]
-generateCombinations (x:xs) =  concat ( 
-    map (\i -> map (\iTail -> i:iTail) (generateCombinations xs)) x)
+generateCombinations (x:xs) = concat [[i:iTail | iTail <- generateCombinations xs] | i <- x]
 
 -- | Generate all possible pairs of elements from different lists
 generatePairs :: [a] -> [a] -> [(a, a)]
-generatePairs [] _ = []
-generatePairs (x: xs) ys = (simpleGen x ys) ++ (generatePairs xs ys) 
+generatePairs xs ys = concat [(simpleGen x ys) | x <- xs]
  
 -- | Generate all possible pairs with given element
 simpleGen :: a -> [a] -> [(a, a)]
-simpleGen _ [] = []
-simpleGen a (x:xs) = (a, x) : simpleGen a xs
+simpleGen a xs = [(a, x) | x <- xs]
 
 -- | Count and store the number of repeated elements
-count :: Ord a => Eq a => [a] -> [(a, Int)] 
-count = map (\xs@(x:_) -> (x, length xs)) . group . sort
+count :: Ord a => Eq a => [a] -> [(a, Int)]
+count list = [(x, length xs) | xs@(x:_) <- group (sort list)]
 
 -- | Convert a list of an object with number
 -- occurrences to a list with a specified number of objects 
@@ -494,9 +488,9 @@ runWith state = do
 --------------------------------------------------------------------------------
 
 numberToRatio :: (Fractional b, Integral a1) => [(a2, a1)] -> [(a2, b)]
-numberToRatio arr = map(\(x, num) -> (x, ratio num)) arr
+numberToRatio arr = [(x, ratio num arr) | (x, num) <- arr]
   where 
-    ratio num = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
+    ratio num arr = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
 
 -- | Check if allele is dominant
 isDominant :: Allele -> Bool
