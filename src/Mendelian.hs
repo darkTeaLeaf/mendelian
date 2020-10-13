@@ -488,9 +488,9 @@ runWith state = do
 --------------------------------------------------------------------------------
 
 numberToRatio :: (Fractional b, Integral a1) => [(a2, a1)] -> [(a2, b)]
-numberToRatio arr = [(x, ratio num arr) | (x, num) <- arr]
+numberToRatio arr = [(x, ratio num) | (x, num) <- arr]
   where 
-    ratio num arr = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
+    ratio num = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
 
 -- | Check if allele is dominant
 isDominant :: Allele -> Bool
