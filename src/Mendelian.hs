@@ -29,7 +29,13 @@ data Genotype = Genotype [(Allele, Allele)]
 
 data Phenotype = Phenotype [Allele]
 
-data Population = Population [(Genotype, Ratio)]
+data Population = Population [(Genotype, Int)]
+
+instance Semigroup (Population) where
+  (<>) = merge2Populations
+
+instance Monoid (Population) where
+  mempty = Population []
 
 data PopulationPhenotype = PopulationPhenotype [(Phenotype, Ratio)]
 
@@ -106,7 +112,7 @@ instance Show Genotype where
 
 instance Show Population where
   show (Population population) = "\n--Population description--\n" 
-                              ++ speciesDescrip population
+                              ++ speciesDescrip (numberToRatio population)
     where
       speciesDescrip :: [(Genotype, Ratio)] -> String
       speciesDescrip [] = ""
@@ -134,9 +140,7 @@ instance Show InputState where
 -- | Compute all possible children genotypes from given parents
 computeOffsprings :: Genotype -> Genotype -> Population
 computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
-  numberToRatio
-  (count [(Genotype comb) | comb <- generateCombinations possibleGens]))
-  
+  (count [(Genotype comb) | comb <- generateCombinations possibleGens])) 
   where
     possibleGens = [[ordered a b | (a, b) <- xs] | xs <- zipWith generatePairs 
         (map translate parent1) (map translate parent2)]
@@ -146,9 +150,6 @@ computeOffsprings (Genotype parent1) (Genotype parent2) = Population(
       = case compare a1 a2 of 
         LT -> (a2, a1)
         _  -> (a1, a2)
-
-    numberToRatio arr = [(x, ratio num arr) | (x, num) <- arr]
-    ratio num arr = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
 
 -- | Generate all possible tuple combinations from different lists
 generateCombinations :: [[(a, a)]] -> [[(a, a)]]
@@ -167,7 +168,41 @@ simpleGen a xs = [(a, x) | x <- xs]
 count :: Ord a => Eq a => [a] -> [(a, Int)]
 count list = [(x, length xs) | xs@(x:_) <- group (sort list)]
 
+-- | Convert a list of an object with number
+-- occurrences to a list with a specified number of objects 
+inflate :: [(a, Int)] -> [a]
+inflate [] = []
+inflate ((e, times):xs) = replicate times e ++ (inflate xs)
+
+mergeRatios :: (Ord a) => [(a, Int)] -> [(a, Int)] -> [(a, Int)]
+mergeRatios lst1 lst2 = count ((inflate lst1) ++ (inflate lst2))
+
+merge2Populations :: Population -> Population -> Population
+merge2Populations (Population p1) (Population p2) = Population 
+                                                    (mergeRatios p1 p2)
+
+mergePopulations :: [Population] -> Population
+mergePopulations lst = mconcat lst
+
 --computeGeneration :: Population -> Population
+-- | Computes possible offsprings from parent population
+computeGeneration :: Population -> [Population]
+computeGeneration (Population parents) = map breeding 
+                         (combinations (length inflatedParents) inflatedParents)
+  where 
+    breeding :: (Genotype, Genotype) -> Population
+    breeding (p1, p2) =  (computeOffsprings p1 p2)
+    inflatedParents = inflate parents
+
+-- | Make all possible combinations of objects in list
+combinations ::Int -> [a] -> [(a, a)]
+combinations 0 _ = []
+combinations _ [] = []
+combinations n arr@(x:xs) = [(x, y) | y <- arr] ++ combinations (n-1) (xs++[x])
+
+-- | Breed the given population.
+breedPopulation :: Population -> Population
+breedPopulation = mergePopulations . computeGeneration
 
 --guessParentChildren :: Phenotype -> PopulationPhenotype -> Genotype
 
@@ -452,6 +487,10 @@ runWith state = do
 --                              Useful utils
 --------------------------------------------------------------------------------
 
+numberToRatio :: (Fractional b, Integral a1) => [(a2, a1)] -> [(a2, b)]
+numberToRatio arr = [(x, ratio num arr) | (x, num) <- arr]
+  where 
+    ratio num arr = (fromIntegral num) / (fromIntegral (sum (map snd arr)))
 
 -- | Check if allele is dominant
 isDominant :: Allele -> Bool
@@ -499,7 +538,7 @@ run = do
   let dad0 = Genotype [((Allele a True "green"), (Allele a True "green")), 
                        ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
   let mom0 = Genotype [((Allele a True "green"), (Allele a True "green")), 
-                      ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
+                       ((Allele b False "wrinkle"), (Allele b False "wrinkle"))]
 
   print (genoToPheno dad0)
   print (genoToPheno mom0)
@@ -530,6 +569,7 @@ run = do
   print (genoToPheno mom2)
   print (computeOffsprings dad2 mom2)
 
-  print("Input your command")
+  print (breedPopulation (computeOffsprings dad1 mom1))
 
+  print("Input your command")
   runWith (InputState [] [] OK (Genotype []) (Genotype []))
